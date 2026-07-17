@@ -1,0 +1,73 @@
+"""
+ESPHome component for Intex® PureSpa
+
+Supported models:
+  28458 / 28462 / 28457 (US) / 28461 (US)  - with water jet + sanitizer
+  28442 / 28440
+
+Based on the original Arduino firmware by Yogui79
+(https://github.com/Yogui79/IntexPureSpa, MIT License).
+
+Hardware wiring (LC12S <-> ESP32):
+  LC12S GND  -> ESP32 GND
+  LC12S CS   -> ESP32 GPIO18
+  LC12S SET  -> ESP32 GPIO19
+  LC12S TX   -> ESP32 GPIO16  (UART2 RX)
+  LC12S RX   -> ESP32 GPIO17  (UART2 TX)
+  LC12S VCC  -> ESP32 3.3 V
+
+HA notifications (persistent_notification.create/dismiss) are handled
+Requires 'homeassistant_services: true' in the api: YAML block.
+"""
+
+import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.components import uart
+from esphome.const import CONF_ID
+
+CODEOWNERS = ["@Yogui79"]
+DEPENDENCIES = ["uart", "api"]
+AUTO_LOAD = ["sensor", "binary_sensor", "switch", "select", "climate"]
+
+intex_spa_ns = cg.esphome_ns.namespace("intex_spa")
+IntexSpa = intex_spa_ns.class_("IntexSpa", cg.Component, uart.UARTDevice)
+
+CONF_INTEX_SPA_ID = "intex_spa_id"
+CONF_NETWORK_ID   = "network_id"
+CONF_CHANNEL      = "channel"
+CONF_MODEL        = "model"
+CONF_CS_PIN       = "cs_pin"
+CONF_SET_PIN      = "set_pin"
+CONF_ACTIVE_SCAN  = "active_scan"
+
+MODEL_28458 = 28458
+MODEL_28442 = 28442
+
+CONFIG_SCHEMA = (
+    cv.Schema(
+        {
+            cv.GenerateID():                             cv.declare_id(IntexSpa),
+            cv.Required(CONF_NETWORK_ID):                cv.hex_uint16_t,
+            cv.Required(CONF_CHANNEL):                   cv.hex_uint8_t,
+            cv.Required(CONF_MODEL):                     cv.one_of(MODEL_28458, MODEL_28442, int=True),
+            cv.Optional(CONF_CS_PIN,      default=18):   cv.uint8_t,
+            cv.Optional(CONF_SET_PIN,     default=19):   cv.uint8_t,
+            cv.Optional(CONF_ACTIVE_SCAN, default=True): cv.boolean,
+        }
+    )
+    .extend(uart.UART_DEVICE_SCHEMA)
+    .extend(cv.COMPONENT_SCHEMA)
+)
+
+
+async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    await uart.register_uart_device(var, config)
+
+    cg.add(var.set_network_id(config[CONF_NETWORK_ID]))
+    cg.add(var.set_channel(config[CONF_CHANNEL]))
+    cg.add(var.set_model(config[CONF_MODEL]))
+    cg.add(var.set_cs_pin(config[CONF_CS_PIN]))
+    cg.add(var.set_set_pin(config[CONF_SET_PIN]))
+    cg.add(var.set_active_scan(config[CONF_ACTIVE_SCAN]))
