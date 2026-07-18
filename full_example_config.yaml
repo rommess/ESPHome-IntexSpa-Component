@@ -33,6 +33,9 @@ wifi:
 
 captive_portal:
 
+time:
+  - platform: homeassistant
+
 # Add the Intex Spa component from fsedarkalex' repo
 external_components:
   - source: github://fsedarkalex/ESPHome-IntexSpa-Component
@@ -142,6 +145,24 @@ sensor:
 
     sanitizer_remaining:    # Model 28458 only
       name: "Sanitizer Time Remaining"
+
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TEXT SENSORS
+# ════════════════════════════════════════════════════════════════════════════
+text_sensor:
+  - platform: intex_spa
+    intex_spa_id: my_spa
+
+    #These are for visualization only. They are only reliable when the ESPHome controller is online all the time as we are counting minutes internally.
+    filter_remaining_hm:
+      name: "Filter Remaining (Projected)"
+
+    #These are for visualization only. They are only reliable when the ESPHome controller is online all the time as we are counting minutes internally.
+    sanitizer_remaining_hm:
+      name: "Sanitizer Remaining (Projected)"
+
 
 # ════════════════════════════════════════════════════════════════════════════
 #  BINARY SENSORS

@@ -126,6 +126,30 @@ void IntexSpa::setup() {
   // state indefinitely. is_busy_ is always false at boot, so this is safe.
   if (is_sending_bs_) is_sending_bs_->publish_state(false);
 
+  // Restore persisted filter/sanitizer hour-marks (real epoch time) so the
+  // sub-hour estimate can survive a reboot. If nothing was ever saved (fresh
+  // install) or the RTC hasn't synced yet, this simply stays at defaults and
+  // the estimate falls back to a fresh millis()-based anchor on first use.
+  filter_mark_pref_ = global_preferences->make_preference<HourMark>(
+      fnv1_hash("intex_spa_filter_mark"));
+  sanitizer_mark_pref_ = global_preferences->make_preference<HourMark>(
+      fnv1_hash("intex_spa_sanitizer_mark"));
+  {
+    HourMark hm{};
+    if (filter_mark_pref_.load(&hm) && hm.hour_value <= 8) {
+      filter_hour_mark_value_ = hm.hour_value;
+      filter_hour_mark_epoch_ = hm.epoch_time;
+      ESP_LOGI(TAG, "Restored filter hour-mark from NVS: %d h @ epoch %u",
+               hm.hour_value, hm.epoch_time);
+    }
+    if (sanitizer_mark_pref_.load(&hm) && hm.hour_value <= 8) {
+      sanitizer_hour_mark_value_ = hm.hour_value;
+      sanitizer_hour_mark_epoch_ = hm.epoch_time;
+      ESP_LOGI(TAG, "Restored sanitizer hour-mark from NVS: %d h @ epoch %u",
+               hm.hour_value, hm.epoch_time);
+    }
+  }
+
   // Configure LC12S control pins using esp-idf GPIO driver (not Arduino)
   // Reset pins first to ensure clean state before reconfiguring
   gpio_reset_pin(static_cast<gpio_num_t>(cs_pin_));
@@ -844,6 +868,21 @@ void IntexSpa::data_management_() {
       filter_remaining_sensor_->publish_state(static_cast<float>(filter_h));
     if (sanitizer_remaining_sensor_ && sanitizer_remaining_sensor_->get_raw_state() != static_cast<float>(sanit_h))
       sanitizer_remaining_sensor_->publish_state(static_cast<float>(sanit_h));
+
+    // Sub-hour estimate: re-anchors on value change (persisted to NVS when a
+    // real-time clock is available) and extrapolates between pump updates.
+    if (filter_remaining_precise_sensor_) {
+      float est = update_hour_estimate_(filter_h, filter_hour_mark_value_,
+                                         filter_hour_mark_millis_, filter_hour_mark_epoch_,
+                                         filter_mark_pref_);
+      filter_remaining_precise_sensor_->publish_state(est);
+    }
+    if (sanitizer_remaining_precise_sensor_) {
+      float est = update_hour_estimate_(sanit_h, sanitizer_hour_mark_value_,
+                                         sanitizer_hour_mark_millis_, sanitizer_hour_mark_epoch_,
+                                         sanitizer_mark_pref_);
+      sanitizer_remaining_precise_sensor_->publish_state(est);
+    }
   }
 
   // ── Power state change handling ───────────────────────────────────────────
