@@ -83,6 +83,17 @@ sensor:
 
     # Diagnostic – raw error code (0 = no error).
     # The on_value trigger sends a HA persistent notification for each error.
+
+    # ════════════════════════════════════════════════════════════════════════════
+    #  HOME ASSISTANT NOTIFICATIONS
+    #
+    #  HA persistent notifications are sent via the on_value trigger on the
+    #  error_code sensor below. This is the only reliable approach – all direct
+    #  C++ API server call methods have changed repeatedly across ESPHome versions.
+    #
+    #  Requires 'homeassistant_services: true' in the api: block (already set).
+    # ════════════════════════════════════════════════════════════════════════════
+
     error_code:
       name: "Error Code"
       on_value:
@@ -238,16 +249,6 @@ select:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  HOME ASSISTANT NOTIFICATIONS
-#
-#  HA persistent notifications are sent via the on_value trigger on the
-#  error_code sensor below. This is the only reliable approach – all direct
-#  C++ API server call methods have changed repeatedly across ESPHome versions.
-#
-#  Requires 'homeassistant_services: true' in the api: block (already set).
-# ════════════════════════════════════════════════════════════════════════════
-
-# ════════════════════════════════════════════════════════════════════════════
 #  HOME ASSISTANT: AVAILABILITY VIA customize.yaml
 #
 #  ESPHome has no native per-entity unavailable API (open feature request).
@@ -256,14 +257,14 @@ select:
 #  source for all controls. When spa_active is off (pump offline or power off),
 #  HA marks all listed entities as "unavailable" in the UI.
 #
+#  Adapt the entity ids to the actual ids in your instance
+#
 #  In configuration.yaml, make sure you have:
 #    homeassistant:
 #      customize: !include customize.yaml
 #
 #  Then in customize.yaml:
 #
-#  switch.spa_power:
-#    availability_template: "{{ is_state('binary_sensor.spa_active', 'on') }}"
 #  switch.bubble_jets:
 #    availability_template: "{{ is_state('binary_sensor.spa_active', 'on') }}"
 #  switch.water_jets:
