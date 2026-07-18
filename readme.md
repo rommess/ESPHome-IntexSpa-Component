@@ -35,7 +35,15 @@ Connect the LC12s as follows:
 You need to find out your individual ChannelID and NetworkID. See and use [Yogui79's tools](https://github.com/Yogui79/IntexPureSpa/tree/main#channel-and-network-id-detection) for that.
 
 ## Setup
-In ESPHome Builder, create a configuration for the new board.
+In ESPHome Builder, create a configuration for the new board. Use esp-idf framework. There are known issues with arduino.
+```yaml
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+```
+
+
 There is an [example](full_example_config.yaml) attached but most importantly you will need the following blocks:
 
 ```yaml
