@@ -8,8 +8,7 @@
 #include "esphome/components/switch/switch.h"
 #include "esphome/components/select/select.h"
 #include "esphome/components/climate/climate.h"
-//#include "esphome/components/time/real_time_clock.h"
-#include <real_time_clock.h>
+#include "esphome/components/time/real_time_clock.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/core/hal.h"
 
