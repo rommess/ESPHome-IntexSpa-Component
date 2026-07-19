@@ -1,7 +1,6 @@
 #include "intex_spa.h"
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
-#include "esphome/components/time/real_time_clock.h"
 
 // ESP-IDF GPIO (no Arduino pinMode/digitalWrite)
 #include "driver/gpio.h"
