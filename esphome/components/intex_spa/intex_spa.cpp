@@ -1,6 +1,7 @@
 #include "intex_spa.h"
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
+#include "esphome/components/time/real_time_clock.h"
 
 // ESP-IDF GPIO (no Arduino pinMode/digitalWrite)
 #include "driver/gpio.h"
@@ -1094,7 +1095,7 @@ void IntexSpa::process_command_queue_() {
 
     bool state_confirmed = false;
     if (pending_toggle_bit_mask_ != 0) {
-      bool actual = (data_[BYTE_STATUS_COMMAND] & pending_toggle_bit_mask_) != 0;
+      bool actual = (pump_frame_snapshot_[BYTE_STATUS_COMMAND] & pending_toggle_bit_mask_) != 0;
       state_confirmed = (actual == pending_toggle_desired_state_);
     }
 
