@@ -9,9 +9,11 @@
 #include "esphome/components/select/select.h"
 #include "esphome/components/climate/climate.h"
 #include "esphome/components/time/real_time_clock.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/core/hal.h"
 
 #include <string>
+#include <cstdio>
 #include <vector>
 
 namespace esphome {
@@ -139,12 +141,12 @@ class IntexSpa : public Component, public uart::UARTDevice {
   void set_error_code_sensor(sensor::Sensor *s)          { error_code_sensor_ = s; }
   void set_filter_remaining_sensor(sensor::Sensor *s)    { filter_remaining_sensor_ = s; }
   void set_sanitizer_remaining_sensor(sensor::Sensor *s) { sanitizer_remaining_sensor_ = s; }
-  void set_filter_remaining_precise_sensor(sensor::Sensor *s)    { filter_remaining_precise_sensor_ = s; }
-  void set_sanitizer_remaining_precise_sensor(sensor::Sensor *s) { sanitizer_remaining_precise_sensor_ = s; }
   // Optional: a real-time clock (homeassistant/sntp/etc). Without one, the
   // sub-hour estimate still works within a single boot session but resets
   // to a fresh anchor on every restart instead of surviving it.
   void set_time_id(time::RealTimeClock *t) { time_id_ = t; }
+  void set_filter_remaining_hm_text_sensor(text_sensor::TextSensor *s)    { filter_remaining_hm_ts_ = s; }
+  void set_sanitizer_remaining_hm_text_sensor(text_sensor::TextSensor *s) { sanitizer_remaining_hm_ts_ = s; }
 
   // ── Binary sensor registration ────────────────────────────────────────────
   void set_heater_active_binary_sensor(binary_sensor::BinarySensor *s)     { heater_active_bs_ = s; }
@@ -332,8 +334,8 @@ class IntexSpa : public Component, public uart::UARTDevice {
   sensor::Sensor *error_code_sensor_{nullptr};
   sensor::Sensor *filter_remaining_sensor_{nullptr};
   sensor::Sensor *sanitizer_remaining_sensor_{nullptr};
-  sensor::Sensor *filter_remaining_precise_sensor_{nullptr};
-  sensor::Sensor *sanitizer_remaining_precise_sensor_{nullptr};
+  text_sensor::TextSensor *filter_remaining_hm_ts_{nullptr};
+  text_sensor::TextSensor *sanitizer_remaining_hm_ts_{nullptr};
 
   // Sub-hour estimate: the pump only reports whole hours remaining. We track
   // the last observed hour-value CHANGE and linearly extrapolate a smoother
@@ -395,6 +397,17 @@ class IntexSpa : public Component, public uart::UARTDevice {
     float est = static_cast<float>(mark_value) - elapsed_h;
     if (est < 0) est = 0;
     return est;
+  }
+
+  // Formats a fractional-hours estimate as "H:MM", e.g. 3.667f -> "3:40".
+  static std::string format_hours_hm_(float hours) {
+    if (hours < 0) hours = 0;
+    int total_minutes = static_cast<int>(hours * 60.0f + 0.5f);  // round to nearest minute
+    int h = total_minutes / 60;
+    int m = total_minutes % 60;
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d:%02d", h, m);
+    return std::string(buf);
   }
 
   binary_sensor::BinarySensor *heater_active_bs_{nullptr};

@@ -870,18 +870,22 @@ void IntexSpa::data_management_() {
       sanitizer_remaining_sensor_->publish_state(static_cast<float>(sanit_h));
 
     // Sub-hour estimate: re-anchors on value change (persisted to NVS when a
-    // real-time clock is available) and extrapolates between pump updates.
-    if (filter_remaining_precise_sensor_) {
-      float est = update_hour_estimate_(filter_h, filter_hour_mark_value_,
-                                         filter_hour_mark_millis_, filter_hour_mark_epoch_,
-                                         filter_mark_pref_);
-      filter_remaining_precise_sensor_->publish_state(est);
+    // real-time clock is available) and extrapolates between pump updates,
+    // formatted as "H:MM" for the text sensor.
+    float filter_est = update_hour_estimate_(filter_h, filter_hour_mark_value_,
+                                              filter_hour_mark_millis_, filter_hour_mark_epoch_,
+                                              filter_mark_pref_);
+    if (filter_remaining_hm_ts_) {
+      std::string hm = format_hours_hm_(filter_est);
+      if (filter_remaining_hm_ts_->state != hm) filter_remaining_hm_ts_->publish_state(hm);
     }
-    if (sanitizer_remaining_precise_sensor_) {
-      float est = update_hour_estimate_(sanit_h, sanitizer_hour_mark_value_,
-                                         sanitizer_hour_mark_millis_, sanitizer_hour_mark_epoch_,
-                                         sanitizer_mark_pref_);
-      sanitizer_remaining_precise_sensor_->publish_state(est);
+
+    float sanit_est = update_hour_estimate_(sanit_h, sanitizer_hour_mark_value_,
+                                             sanitizer_hour_mark_millis_, sanitizer_hour_mark_epoch_,
+                                             sanitizer_mark_pref_);
+    if (sanitizer_remaining_hm_ts_) {
+      std::string hm = format_hours_hm_(sanit_est);
+      if (sanitizer_remaining_hm_ts_->state != hm) sanitizer_remaining_hm_ts_->publish_state(hm);
     }
   }
 

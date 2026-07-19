@@ -27,7 +27,7 @@ from esphome.const import CONF_ID, CONF_TIME_ID
 
 CODEOWNERS = ["@Yogui79"]
 DEPENDENCIES = ["uart", "api"]
-AUTO_LOAD = ["sensor", "binary_sensor", "switch", "select", "climate"]
+AUTO_LOAD = ["sensor", "binary_sensor", "switch", "select", "climate", "text_sensor"]
 
 intex_spa_ns = cg.esphome_ns.namespace("intex_spa")
 IntexSpa = intex_spa_ns.class_("IntexSpa", cg.Component, uart.UARTDevice)
