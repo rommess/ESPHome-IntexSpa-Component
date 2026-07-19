@@ -8,6 +8,7 @@
 #include "esphome/components/switch/switch.h"
 #include "esphome/components/select/select.h"
 #include "esphome/components/climate/climate.h"
+#include "esphome/components/time/real_time_clock.h"
 #include "esphome/core/hal.h"
 
 #include <string>
@@ -138,6 +139,12 @@ class IntexSpa : public Component, public uart::UARTDevice {
   void set_error_code_sensor(sensor::Sensor *s)          { error_code_sensor_ = s; }
   void set_filter_remaining_sensor(sensor::Sensor *s)    { filter_remaining_sensor_ = s; }
   void set_sanitizer_remaining_sensor(sensor::Sensor *s) { sanitizer_remaining_sensor_ = s; }
+  void set_filter_remaining_precise_sensor(sensor::Sensor *s)    { filter_remaining_precise_sensor_ = s; }
+  void set_sanitizer_remaining_precise_sensor(sensor::Sensor *s) { sanitizer_remaining_precise_sensor_ = s; }
+  // Optional: a real-time clock (homeassistant/sntp/etc). Without one, the
+  // sub-hour estimate still works within a single boot session but resets
+  // to a fresh anchor on every restart instead of surviving it.
+  void set_time_id(time::RealTimeClock *t) { time_id_ = t; }
 
   // ── Binary sensor registration ────────────────────────────────────────────
   void set_heater_active_binary_sensor(binary_sensor::BinarySensor *s)     { heater_active_bs_ = s; }
@@ -325,6 +332,70 @@ class IntexSpa : public Component, public uart::UARTDevice {
   sensor::Sensor *error_code_sensor_{nullptr};
   sensor::Sensor *filter_remaining_sensor_{nullptr};
   sensor::Sensor *sanitizer_remaining_sensor_{nullptr};
+  sensor::Sensor *filter_remaining_precise_sensor_{nullptr};
+  sensor::Sensor *sanitizer_remaining_precise_sensor_{nullptr};
+
+  // Sub-hour estimate: the pump only reports whole hours remaining. We track
+  // the last observed hour-value CHANGE and linearly extrapolate a smoother
+  // estimate between updates. Purely observational – whenever the raw value
+  // changes for ANY reason (our own select, the physical panel/tablet, or a
+  // fresh pump report), we simply re-anchor here, so this is automatically
+  // robust against external changes with no special handling needed.
+  // 0xFF is used as "never observed yet" sentinel since the documented valid
+  // range is 0-8.
+  //
+  // Anchor time is stored BOTH as millis() (always available, resets every
+  // boot) and as a real Unix epoch second (only available/meaningful if
+  // time_id_ is configured and synced). The epoch anchor is persisted to NVS
+  // so the estimate survives a reboot; millis() cannot be persisted
+  // meaningfully since it always restarts at 0.
+  struct HourMark {
+    uint8_t  hour_value;
+    uint32_t epoch_time;  // 0 = unknown/no RTC available when this was saved
+  };
+  time::RealTimeClock *time_id_{nullptr};
+  ESPPreferenceObject  filter_mark_pref_;
+  ESPPreferenceObject  sanitizer_mark_pref_;
+  uint8_t  filter_hour_mark_value_{0xFF};
+  uint32_t filter_hour_mark_millis_{0};
+  uint32_t filter_hour_mark_epoch_{0};
+  uint8_t  sanitizer_hour_mark_value_{0xFF};
+  uint32_t sanitizer_hour_mark_millis_{0};
+  uint32_t sanitizer_hour_mark_epoch_{0};
+
+  // Re-anchors on value change (persisting to NVS if a valid RTC is
+  // available) and returns the current extrapolated estimate in hours.
+  float update_hour_estimate_(uint8_t current_raw, uint8_t &mark_value,
+                               uint32_t &mark_millis, uint32_t &mark_epoch,
+                               ESPPreferenceObject &pref) {
+    bool     time_valid = (time_id_ != nullptr) && time_id_->now().is_valid();
+    uint32_t now_epoch   = time_valid ? static_cast<uint32_t>(time_id_->now().timestamp) : 0;
+    uint32_t now_ms       = millis();
+
+    if (current_raw != mark_value) {
+      mark_value  = current_raw;
+      mark_millis = now_ms;
+      mark_epoch  = now_epoch;  // 0 if no RTC yet – falls back to millis() below
+      if (time_valid) {
+        HourMark hm{mark_value, mark_epoch};
+        pref.save(&hm);
+      }
+    }
+
+    if (mark_value == 0) return 0.0f;
+
+    float elapsed_h;
+    if (time_valid && mark_epoch != 0) {
+      // Real elapsed time, correctly spans across a reboot.
+      elapsed_h = static_cast<float>(now_epoch - mark_epoch) / 3600.0f;
+    } else {
+      // No RTC (yet) – best-effort, resets to 0 elapsed on every boot.
+      elapsed_h = static_cast<float>(now_ms - mark_millis) / 3600000.0f;
+    }
+    float est = static_cast<float>(mark_value) - elapsed_h;
+    if (est < 0) est = 0;
+    return est;
+  }
 
   binary_sensor::BinarySensor *heater_active_bs_{nullptr};
   binary_sensor::BinarySensor *water_filter_bs_{nullptr};

@@ -22,8 +22,8 @@ Requires 'homeassistant_services: true' in the api: YAML block.
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import uart
-from esphome.const import CONF_ID
+from esphome.components import uart, time
+from esphome.const import CONF_ID, CONF_TIME_ID
 
 CODEOWNERS = ["@Yogui79"]
 DEPENDENCIES = ["uart", "api"]
@@ -53,6 +53,11 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_CS_PIN,      default=18):   cv.uint8_t,
             cv.Optional(CONF_SET_PIN,     default=19):   cv.uint8_t,
             cv.Optional(CONF_ACTIVE_SCAN, default=True): cv.boolean,
+            # Optional real-time clock (e.g. `time: - platform: homeassistant`
+            # or `sntp`). Without it, the filter/sanitizer sub-hour estimate
+            # still works but resets its progress on every reboot instead of
+            # surviving it via NVS.
+            cv.Optional(CONF_TIME_ID):                   cv.use_id(time.RealTimeClock),
         }
     )
     .extend(uart.UART_DEVICE_SCHEMA)
@@ -71,3 +76,7 @@ async def to_code(config):
     cg.add(var.set_cs_pin(config[CONF_CS_PIN]))
     cg.add(var.set_set_pin(config[CONF_SET_PIN]))
     cg.add(var.set_active_scan(config[CONF_ACTIVE_SCAN]))
+
+    if CONF_TIME_ID in config:
+        time_var = await cg.get_variable(config[CONF_TIME_ID])
+        cg.add(var.set_time_id(time_var))
