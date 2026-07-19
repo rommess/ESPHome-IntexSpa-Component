@@ -9,8 +9,8 @@
 #include "esphome/components/select/select.h"
 #include "esphome/components/climate/climate.h"
 //#include "esphome/components/time/real_time_clock.h"
-#include "esphome/components/time/rtc_time.h"
-using esphome::time::RTCTime;
+#include "esphome/components/time/rtc.h"
+using esphome::time::RTC;
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/core/hal.h"
 
